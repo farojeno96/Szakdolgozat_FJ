@@ -1,0 +1,109 @@
+# Tudnivalók:
+# Az első részábránál megpróbáltam a két alaki paraméterrel ellátott entrópiát, de néhol elszállt sajnos
+# Be kellene építeni "elszállás elleni fékeket" a függvényekbe - ez megtörtént és így jobban működik, de
+# további kísérletek kellenek.
+
+
+library(tidyverse)
+library(reshape2)
+library(gridExtra)
+library(latex2exp)
+
+setwd("C:/Users/Jenő/Desktop/ELTE/2025 ősz - Survey statisztika/Szakdolgozat")
+
+g_1 <- function(x){
+  return((1 - x)/x)
+}
+
+g_1_inv <- function(x){
+  return(1/(1 + x))
+}
+
+# Ellenőrzés:
+g_1_inv(g_1(0.95))
+
+g_2 <- function(x) {
+  return(-log(x))
+}
+
+g_2_inv <- function(x) {
+  return(exp(-x))
+}
+
+# Ellenőrzés:
+g_2_inv(g_2(0.45))
+
+g_3 <- function(x, alpha){
+  return(((1 - x)/x)^alpha)
+}
+
+g_3_inv <- function(x, alpha){
+  return(1/(1 + x^(1/alpha)))
+}
+
+# Ellenőrzés:
+g_3_inv(g_3(0.275, alpha = 2), alpha = 2)
+
+
+
+Fuzzy_entropy <- function(x, generator_name, alpha = NULL){
+  if(generator_name == "g_1"){
+    g <- g_1
+    g_inv <- g_1_inv
+    result <- 2 * g_inv(0.5 * (g(x) + g(1 - x)))
+  } else if(generator_name == "g_2"){
+    g <- g_2
+    g_inv <- g_2_inv
+    result <- 2 * g_inv(0.5 * (g(x) + g(1 - x)))
+  } else if(generator_name == "g_3"){
+    if(is.null(alpha)) stop("Az 'alpha' paraméter kötelező a g_3 esetén.")
+    g <- function(x) g_3(x, alpha)
+    g_inv <- function(x) g_3_inv(x, alpha)
+    result <- 2 * g_inv(0.5 * (g(x) + g(1 - x)))
+  } else {
+    stop("Ismeretlen generátorfüggvény.")
+  }
+  return(result)
+}
+
+# Ellenőrzés:
+Fuzzy_entropy(0.5, generator_name = "g_1")
+Fuzzy_entropy(0.45, generator_name = "g_2")
+Fuzzy_entropy(0.275, generator_name = "g_3", alpha = 2)
+
+# Ábrázolás:
+x_s <- seq(0,1, by = 0.01)
+F_x_s_1 <- Fuzzy_entropy(x_s, generator_name = "g_3", alpha = 1)
+F_x_s_2 <- Fuzzy_entropy(x_s, generator_name = "g_3", alpha = 1/2)
+#plot(x_s, F_x_s, type = "l")
+#lines(x_s, Fuzzy_entropy(x_s, generator_name = "g_3", alpha = 5), col = "green")
+#lines(x_s, Fuzzy_entropy(x_s, generator_name = "g_3", alpha = 1/2), col = "red")
+
+data_1 <- as.data.frame(cbind(x_s, F_x_s_1, F_x_s_2))
+
+data_long <- data_1 %>% melt(id.vars = "x_s")
+
+data_long %>% ggplot(aes(x_s, value, color = variable)) + geom_line(lwd = 1.2) + 
+  labs(x = TeX("$\\x$"), y = TeX("$\\F(x)$"), color = "Jelmagyarázat") + 
+  scale_color_manual(
+    values = c(
+      "F_x_s_1" = "red", 
+      "F_x_s_2" = "green"
+    ),
+    labels = TeX(c(
+      "F_x_s_1" = "\\F(x) = 4x(1-x)",
+      "F_x_s_2" = "\\F(x) = 2\\sqrt{x(1-x)}"
+    ))
+  ) +
+  theme(
+    axis.title.x = element_text(size = 20), # X tengely cím
+    axis.title.y = element_text(size = 20), # Y tengely cím
+    axis.text.x = element_text(size = 18),                # X tengely feliratok
+    axis.text.y = element_text(size = 18),                # Y tengely feliratok
+    legend.title = element_text(size = 18),# Legenda cím
+    legend.text = element_text(size = 18),                # Legenda
+    panel.background = element_rect(fill = "white"),
+    panel.grid = element_line(color = "grey"),
+    axis.line = element_line(color = "black", linewidth = 1.2, arrow = arrow(ends = "last", type = "closed", length = unit(0.1, "inches"))),
+    legend.background = element_rect(linewidth = 1.2, colour = "black")
+  )
